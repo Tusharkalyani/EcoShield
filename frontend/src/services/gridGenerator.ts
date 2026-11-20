@@ -27,18 +27,18 @@ const PARK_BOUNDARY: [number, number][] = [
 
 const SETTLEMENTS: { lat: number; lon: number; radius: number }[] = [
   { lat: -1.4994, lon: 29.6342, radius: 2500 }, // Musanze / Ruhengeri
-  { lat: -1.4860, lon: 29.5842, radius: 1200 }, // Kinigi town centre
-  { lat: -1.5261, lon: 29.5953, radius: 1000 }, // Nyakinama
-  { lat: -1.4820, lon: 29.6089, radius: 1000 }, // Mukamira
-  { lat: -1.5531, lon: 29.5706, radius: 1000 }, // Busogo
-  { lat: -1.5253, lon: 29.5444, radius:  900 }, // Cyuve
-  { lat: -1.5103, lon: 29.5214, radius:  900 }, // Nkotsi
-  { lat: -1.4703, lon: 29.6194, radius:  900 }, // Gataraga
-  { lat: -1.4567, lon: 29.5950, radius:  800 }, // Kinoni
+  { lat: -1.4860, lon: 29.5842, radius:  400 }, // Kinigi town centre (built-up core only)
+  { lat: -1.5261, lon: 29.5953, radius:  400 }, // Nyakinama
+  { lat: -1.4820, lon: 29.6089, radius:  400 }, // Mukamira
+  { lat: -1.5531, lon: 29.5706, radius:  400 }, // Busogo
+  { lat: -1.5253, lon: 29.5444, radius:  400 }, // Cyuve
+  { lat: -1.5103, lon: 29.5214, radius:  400 }, // Nkotsi
+  { lat: -1.4703, lon: 29.6194, radius:  400 }, // Gataraga
+  { lat: -1.4567, lon: 29.5950, radius:  400 }, // Kinoni
 ]
 
 const SAFE_SCORE_CAP = 0.14
-const PARK_THRESHOLD_M = 1500
+const PARK_THRESHOLD_M = 6000 // 6 km — covers the full Kinigi agricultural corridor (2–5 km east of VNP boundary)
 
 function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6_371_000

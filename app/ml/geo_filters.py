@@ -27,8 +27,13 @@ from typing import NamedTuple
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 
-PARK_PROXIMITY_THRESHOLD_M: float = 1_500.0
-"""Cells within this distance of the park boundary keep their full risk score."""
+PARK_PROXIMITY_THRESHOLD_M: float = 6_000.0
+"""Cells within this distance of the park boundary keep their full risk score.
+
+6 km covers the entire Kinigi agricultural corridor (the real HWC zone) which
+sits 2–5 km east of the VNP boundary.  Musanze city (~8 km away) is still
+caught by the settlement exclusion filter regardless of this threshold.
+"""
 
 SETTLEMENT_EXCLUSION_RADIUS_M: float = 1_000.0
 """Default radius around town centres where wildlife raids are unlikely (metres)."""
@@ -81,14 +86,14 @@ class Settlement(NamedTuple):
 
 SETTLEMENTS: list[Settlement] = [
     Settlement("Musanze/Ruhengeri",  -1.4994, 29.6342, 2_500.0),  # city, largest
-    Settlement("Kinigi town centre", -1.4860, 29.5842, 1_200.0),  # tourism hub
-    Settlement("Nyakinama",          -1.5261, 29.5953, 1_000.0),
-    Settlement("Mukamira",           -1.4820, 29.6089, 1_000.0),
-    Settlement("Busogo",             -1.5531, 29.5706, 1_000.0),
-    Settlement("Cyuve",              -1.5253, 29.5444,   900.0),
-    Settlement("Nkotsi",             -1.5103, 29.5214,   900.0),
-    Settlement("Gataraga",           -1.4703, 29.6194,   900.0),
-    Settlement("Kinoni",             -1.4567, 29.5950,   800.0),
+    Settlement("Kinigi town centre", -1.4860, 29.5842,   400.0),  # small tourism hub — only the built-up core
+    Settlement("Nyakinama",          -1.5261, 29.5953,   400.0),
+    Settlement("Mukamira",           -1.4820, 29.6089,   400.0),
+    Settlement("Busogo",             -1.5531, 29.5706,   400.0),
+    Settlement("Cyuve",              -1.5253, 29.5444,   400.0),
+    Settlement("Nkotsi",             -1.5103, 29.5214,   400.0),
+    Settlement("Gataraga",           -1.4703, 29.6194,   400.0),
+    Settlement("Kinoni",             -1.4567, 29.5950,   400.0),
 ]
 
 # ── Maths helpers ─────────────────────────────────────────────────────────────
