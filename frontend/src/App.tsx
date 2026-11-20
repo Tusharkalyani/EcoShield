@@ -23,6 +23,7 @@ import {
   mockHealth,
   mockPipelineStatus,
 } from './services/mockData'
+import { generateDynamicGridAroundPlot } from './services/gridGenerator'
 import { UserPlus, CheckCircle2 } from 'lucide-react'
 
 type Tab = 'map' | 'farmers' | 'alerts'
@@ -33,6 +34,7 @@ export default function App() {
   const [showRegister, setShowRegister] = useState(false)
   const [showSighting, setShowSighting] = useState(false)
   const [initialRegisterCoords, setInitialRegisterCoords] = useState<{ lat: number; lon: number } | null>(null)
+  const [mapTarget, setMapTarget] = useState<{ lat: number; lon: number } | null>(null)
 
   // Platform Data State
   const [farmers, setFarmers] = useState<Farmer[]>(mockFarmers)
@@ -106,7 +108,50 @@ export default function App() {
   // Handlers
   function handleFarmerRegistered(newFarmer: Farmer) {
     setFarmers((prev) => [newFarmer, ...prev])
-    showToast(`🌾 Plot registered in ${newFarmer.village_sector}! Added to map & directory.`)
+
+    // Generate dynamic 500m danger-level grid boxes around the newly registered plot
+    const dynamicPlotCells = generateDynamicGridAroundPlot(
+      newFarmer.latitude,
+      newFarmer.longitude,
+      newFarmer.id,
+      newFarmer.village_sector
+    )
+
+    // Merge new danger grid boxes into state, preserving existing cells without ID conflict
+    setCells((prev) => {
+      const newIds = new Set(dynamicPlotCells.map((c) => c.cell_id))
+      const remaining = prev.filter((c) => !newIds.has(c.cell_id))
+      return [...dynamicPlotCells, ...remaining]
+    })
+
+    // Automatically fly map camera directly to the newly registered plot
+    setMapTarget({ lat: newFarmer.latitude, lon: newFarmer.longitude })
+    setTab('map')
+
+    showToast(`🌾 Plot registered in ${newFarmer.village_sector}! Generated 9 dynamic danger level grid boxes around plot.`)
+
+    // Background sync with backend /predict-zone if server is reachable
+    const delta = 0.009
+    const bbox = {
+      min_lon: Number((newFarmer.longitude - delta).toFixed(5)),
+      min_lat: Number((newFarmer.latitude - delta).toFixed(5)),
+      max_lon: Number((newFarmer.longitude + delta).toFixed(5)),
+      max_lat: Number((newFarmer.latitude + delta).toFixed(5)),
+      cell_size_m: 500,
+      trigger_alerts: true,
+    }
+    predictZone(bbox)
+      .then(() => fetchCells())
+      .then((serverCells) => {
+        if (serverCells && serverCells.length > 0) {
+          setCells((prev) => {
+            const serverIds = new Set(serverCells.map((c) => c.cell_id))
+            const remaining = prev.filter((c) => !serverIds.has(c.cell_id))
+            return [...serverCells, ...remaining]
+          })
+        }
+      })
+      .catch(() => {})
   }
 
   function handleSightingLogged(newSighting: AnimalSighting) {
@@ -218,6 +263,7 @@ export default function App() {
                 cells={cells}
                 farmers={farmers}
                 sightings={sightings}
+                targetLocation={mapTarget}
                 onCellSelect={setSelectedCell}
                 onMapClick={(lat, lon) => {
                   // Clicking an open point on the map offers quick coordinate registration

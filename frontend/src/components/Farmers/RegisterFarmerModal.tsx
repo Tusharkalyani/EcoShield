@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
+import { useState, useMemo } from 'react'
+import { MapContainer, TileLayer, Marker, GeoJSON, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { X, MapPin, CheckCircle, Crosshair } from 'lucide-react'
+import { X, MapPin, CheckCircle, Crosshair, ShieldAlert } from 'lucide-react'
 import type { Farmer, RegisterFarmerPayload } from '../../types'
 import { registerFarmer } from '../../services/api'
+import { generateDynamicGridAroundPlot } from '../../services/gridGenerator'
 import 'leaflet/dist/leaflet.css'
 
 interface Props {
@@ -82,6 +83,17 @@ export default function RegisterFarmerModal({
   function handleCoordPick(lat: number, lon: number) {
     setForm((p) => ({ ...p, latitude: lat, longitude: lon }))
   }
+
+  const previewGeoJson = useMemo(() => {
+    const previewCells = generateDynamicGridAroundPlot(form.latitude, form.longitude, 'PREV', form.village_sector)
+    return {
+      type: 'FeatureCollection' as const,
+      features: previewCells.map((c) => ({
+        ...c.geom,
+        properties: { risk_score: c.risk_score },
+      })),
+    }
+  }, [form.latitude, form.longitude, form.village_sector])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -209,7 +221,7 @@ export default function RegisterFarmerModal({
               </div>
             </div>
 
-            {/* Embedded Mini Leaflet Map */}
+            {/* Embedded Mini Leaflet Map with Danger Grid Preview */}
             <div
               className="w-full h-52 rounded-lg overflow-hidden border relative"
               style={{ borderColor: '#334155' }}
@@ -225,6 +237,20 @@ export default function RegisterFarmerModal({
                   attribution='&copy; Esri'
                   maxZoom={18}
                 />
+                <GeoJSON
+                  key={`prev-grid-${form.latitude}-${form.longitude}`}
+                  data={previewGeoJson}
+                  style={(feature) => {
+                    const score = feature?.properties?.risk_score ?? 0.3
+                    const color = score >= 0.75 ? '#EF4444' : score >= 0.45 ? '#F59E0B' : '#10B981'
+                    return {
+                      color: '#F8FAFC',
+                      weight: 1,
+                      fillColor: color,
+                      fillOpacity: 0.5,
+                    }
+                  }}
+                />
                 <Marker position={[form.latitude, form.longitude]} icon={pickerIcon} />
                 <MapEvents onPick={handleCoordPick} />
                 <MapRecenter lat={form.latitude} lon={form.longitude} />
@@ -235,6 +261,12 @@ export default function RegisterFarmerModal({
               >
                 📍 {form.latitude.toFixed(5)}, {form.longitude.toFixed(5)}
               </div>
+            </div>
+            <div className="flex items-center gap-1.5 mt-1.5 text-[11px]" style={{ color: '#94A3B8' }}>
+              <ShieldAlert size={13} style={{ color: '#10B981' }} />
+              <span>
+                Dynamic danger grid: <b>9 risk assessment boxes (500m each)</b> will be generated around this plot.
+              </span>
             </div>
           </div>
 

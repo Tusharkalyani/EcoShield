@@ -256,6 +256,12 @@ def register_farmer(
     }
     _IN_MEMORY_FARMERS.insert(0, farmer_dict)
 
+    # Automatically generate dynamic danger-level grid boxes around the newly registered plot
+    try:
+        _generate_dynamic_grid_for_plot(payload.latitude, payload.longitude)
+    except Exception as exc:
+        logger.warning("Failed to auto-generate perimeter grid for plot: %s", exc)
+
     return FarmerResponse(
         id=farmer_id,
         village_sector=payload.village_sector,
@@ -264,6 +270,69 @@ def register_farmer(
         longitude=payload.longitude,
         phone_masked=masked,
     )
+
+
+def _generate_dynamic_grid_for_plot(lat: float, lon: float) -> list[dict[str, Any]]:
+    """Automatically generate, score, and cache 500m danger level grid cells around a plot."""
+    global _CACHED_CELLS
+    buffer_deg = 0.009  # ~1km radius around plot
+    bbox = (
+        round(lon - buffer_deg, 5),
+        round(lat - buffer_deg, 5),
+        round(lon + buffer_deg, 5),
+        round(lat + buffer_deg, 5),
+    )
+    prediction_date = date.today()
+    generated_features: list[dict[str, Any]] = []
+
+    try:
+        gdf = generate_spatial_grid(bbox, cell_size_m=500)
+        if gdf.empty:
+            return []
+
+        for _, row in gdf.iterrows():
+            try:
+                features_vec = [
+                    float(row["ndvi"]),
+                    float(row["ndwi"]),
+                    float(row["slope"]),
+                    float(row["dist_forest_m"]),
+                    float(row["elevation"]),
+                    150.0,
+                    22.0,
+                ]
+                score = predict_grid_risk(features_vec)
+            except Exception:
+                score = esi_from_raw(
+                    ndvi=float(row["ndvi"]),
+                    moisture=float(row["ndwi"]),
+                    distance_m=float(row["dist_forest_m"]),
+                )
+
+            cell_feat = {
+                "type": "Feature",
+                "geometry": mapping(row["geometry"]),
+                "properties": {
+                    "cell_id": row["cell_id"],
+                    "ndvi": float(row["ndvi"]),
+                    "ndwi": float(row["ndwi"]),
+                    "slope": float(row["slope"]),
+                    "dist_forest_m": float(row["dist_forest_m"]),
+                    "risk_score": round(score, 3),
+                    "prediction_date": str(prediction_date),
+                },
+            }
+            generated_features.append(cell_feat)
+
+        # Merge into in-memory cache without duplicates
+        new_ids = {f.get("properties", {}).get("cell_id") for f in generated_features}
+        _CACHED_CELLS = [c for c in _CACHED_CELLS if c.get("properties", {}).get("cell_id") not in new_ids]
+        _CACHED_CELLS.extend(generated_features)
+        logger.info("Auto-generated %d dynamic danger grid cells around plot (%f, %f)", len(generated_features), lat, lon)
+    except Exception as exc:
+        logger.warning("Dynamic grid generation around plot failed: %s", exc)
+
+    return generated_features
 
 
 # ── Routes: Grid Cells & Predictions ──────────────────────────────────────

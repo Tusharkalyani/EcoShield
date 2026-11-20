@@ -12,6 +12,7 @@ interface Props {
   cells: GridCell[]
   farmers?: Farmer[]
   sightings?: AnimalSighting[]
+  targetLocation?: { lat: number; lon: number } | null
   onCellSelect: (cell: GridCell) => void
   onMapClick?: (lat: number, lon: number) => void
 }
@@ -81,6 +82,16 @@ function MapResizeHandler() {
   return null
 }
 
+function MapFlyTo({ target }: { target?: { lat: number; lon: number } | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (target) {
+      map.flyTo([target.lat, target.lon], 14, { duration: 1.2 })
+    }
+  }, [target, map])
+  return null
+}
+
 function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lon: number) => void }) {
   useMapEvents({
     click(e) {
@@ -101,9 +112,11 @@ function RiskLayer({ cells, onCellSelect }: { cells: GridCell[]; onCellSelect: (
     })),
   }
 
+  const layerKey = `grid-layer-${cells.length}-${cells[0]?.cell_id || ''}-${cells[cells.length - 1]?.cell_id || ''}`
+
   return (
     <GeoJSON
-      key={cells.length}
+      key={layerKey}
       data={geojson}
       style={(feature) => {
         const score = feature?.properties?.risk_score ?? 0
@@ -111,15 +124,18 @@ function RiskLayer({ cells, onCellSelect }: { cells: GridCell[]; onCellSelect: (
           color: '#0F172A',
           weight: 1.5,
           fillColor: riskColor(score),
-          fillOpacity: 0.55,
+          fillOpacity: 0.58,
         }
       }}
       onEachFeature={(feature: Feature, layer: Layer) => {
         const { cell_id, risk_score, cell } = feature.properties ?? {}
+        const levelLabel = risk_score >= 0.75 ? 'HIGH DANGER' : risk_score >= 0.45 ? 'MEDIUM DANGER' : 'LOW DANGER'
         layer.bindTooltip(
-          `<div style="font-family:monospace;font-size:12px;padding:2px 4px;">
-            <b style="color:#10B981">${cell_id}</b><br/>
-            Risk: <b style="color:${riskColor(risk_score)}">${(risk_score * 100).toFixed(0)}%</b>
+          `<div style="font-family:monospace;font-size:11px;padding:4px 6px;background:#0F172A;border:1px solid #334155;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.5);">
+            <div style="font-weight:bold;color:#10B981;margin-bottom:2px;">${cell_id}</div>
+            <div>Danger: <b style="color:${riskColor(risk_score)}">${levelLabel} (${(risk_score * 100).toFixed(0)}%)</b></div>
+            <div style="color:#94A3B8;font-size:10px;margin-top:2px;">NDVI: ${cell?.ndvi?.toFixed(2) ?? '0.50'} • Slope: ${cell?.slope?.toFixed(1) ?? '5.0'}°</div>
+            <div style="color:#64748B;font-size:9px;margin-top:2px;">Click to view telemetry</div>
           </div>`,
           { sticky: true, opacity: 0.95 }
         )
@@ -130,7 +146,7 @@ function RiskLayer({ cells, onCellSelect }: { cells: GridCell[]; onCellSelect: (
           ;(layer as any).setStyle({ fillOpacity: 0.85, weight: 2.5, color: '#F8FAFC' })
         })
         layer.on('mouseout', () => {
-          ;(layer as any).setStyle({ fillOpacity: 0.55, weight: 1.5, color: '#0F172A' })
+          ;(layer as any).setStyle({ fillOpacity: 0.58, weight: 1.5, color: '#0F172A' })
         })
       }}
     />
@@ -162,6 +178,7 @@ export default function RiskMap({
   cells,
   farmers = [],
   sightings = [],
+  targetLocation = null,
   onCellSelect,
   onMapClick,
 }: Props) {
@@ -183,6 +200,7 @@ export default function RiskMap({
         zoomControl={false}
       >
         <MapResizeHandler />
+        <MapFlyTo target={targetLocation} />
         <MapClickHandler onMapClick={onMapClick} />
 
         {/* Dynamic Basemap Layer */}
