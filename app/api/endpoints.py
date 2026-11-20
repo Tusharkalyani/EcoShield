@@ -19,6 +19,7 @@ from app.core.security import Role, TokenPayload, create_access_token, decrypt_f
 from app.db.models import AlertDispatchLog, AnimalSighting, Farmer, RiskGridCell
 from app.ml.fallback import esi_from_raw
 from app.ml.feature_engine import generate_spatial_grid
+from app.ml.geo_filters import filter_score
 from app.ml.model import predict_grid_risk
 from app.services.alert_service import run_batch_alerts
 
@@ -309,6 +310,12 @@ def _generate_dynamic_grid_for_plot(lat: float, lon: float) -> list[dict[str, An
                     distance_m=float(row["dist_forest_m"]),
                 )
 
+            # Apply park-proximity / settlement geo filter
+            _bounds = row["geometry"].bounds  # (minx, miny, maxx, maxy) = (minlon, minlat, maxlon, maxlat)
+            _centre_lat = (_bounds[1] + _bounds[3]) / 2
+            _centre_lon = (_bounds[0] + _bounds[2]) / 2
+            score = filter_score(_centre_lat, _centre_lon, score)
+
             cell_feat = {
                 "type": "Feature",
                 "geometry": mapping(row["geometry"]),
@@ -407,6 +414,12 @@ def get_grid_cells(
                         distance_m=float(row["dist_forest_m"]),
                     )
 
+                # Apply park-proximity / settlement geo filter
+                _bounds = row["geometry"].bounds
+                _centre_lat = (_bounds[1] + _bounds[3]) / 2
+                _centre_lon = (_bounds[0] + _bounds[2]) / 2
+                score = filter_score(_centre_lat, _centre_lon, score)
+
                 cell_feat = {
                     "type": "Feature",
                     "geometry": mapping(row["geometry"]),
@@ -471,6 +484,12 @@ def predict_zone(
                 moisture=float(row["ndwi"]),
                 distance_m=float(row["dist_forest_m"]),
             )
+
+        # Apply park-proximity / settlement geo filter
+        _bounds = row["geometry"].bounds
+        _centre_lat = (_bounds[1] + _bounds[3]) / 2
+        _centre_lon = (_bounds[0] + _bounds[2]) / 2
+        risk_score = filter_score(_centre_lat, _centre_lon, risk_score)
 
         if risk_score >= 0.75:
             high_risk_count += 1
