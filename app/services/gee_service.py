@@ -11,6 +11,7 @@ generator that produces plausible synthetic values.
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 from dataclasses import dataclass, field
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 _ee: Any | None = None
 _ee_initialised: bool = False
+_last_error: str | None = None
 
 
 def _get_ee():
@@ -74,16 +76,18 @@ class GEEFeatures:
 def authenticate(
     service_account: str,
     private_key_path: str,
+    project: str | None = None,
 ) -> bool:
     """Authenticate with GEE using a service-account JSON key.
 
     Returns ``True`` on success, ``False`` if the key is missing or
     initialisation fails (in which case the mock generator should be used).
     """
-    global _ee_initialised
+    global _ee_initialised, _last_error
 
     key_file = Path(private_key_path)
     if not key_file.exists():
+        _last_error = f"GEE key file not found at {private_key_path}"
         logger.warning(
             "GEE key file not found at %s – falling back to mock data.",
             private_key_path,
@@ -93,22 +97,72 @@ def authenticate(
 
     try:
         ee = _get_ee()
+
+        project_id = project
+        if not project_id:
+            try:
+                with open(key_file, "r", encoding="utf-8") as f:
+                    key_data = json.load(f)
+                    project_id = key_data.get("project_id")
+            except Exception:
+                pass
+
         credentials = ee.ServiceAccountCredentials(
             service_account,
             str(key_file),
         )
-        ee.Initialize(credentials)
+
+        try:
+            if project_id:
+                ee.Initialize(credentials, project=project_id)
+            else:
+                ee.Initialize(credentials)
+        except TypeError:
+            # Older ee versions might not accept project argument
+            ee.Initialize(credentials)
+
         _ee_initialised = True
-        logger.info("GEE authenticated successfully as %s", service_account)
+        _last_error = None
+        logger.info(
+            "GEE authenticated successfully as %s (project: %s)",
+            service_account,
+            project_id or "default",
+        )
         return True
-    except Exception:
-        logger.exception("GEE authentication failed")
+    except Exception as exc:
+        _last_error = str(exc)
+        logger.warning("GEE authentication failed (%s) – will fallback to synthetic features.", exc)
         _ee_initialised = False
         return False
 
 
+def get_last_error() -> str | None:
+    """Return the last error string encountered during GEE initialisation."""
+    return _last_error
+
+
+def ensure_authenticated() -> bool:
+    """Ensure GEE is authenticated using application settings if not already initialised."""
+    global _ee_initialised
+    if _ee_initialised:
+        return True
+
+    try:
+        from app.core.config import get_settings
+        settings = get_settings()
+        if settings.GEE_SERVICE_ACCOUNT and settings.GEE_PRIVATE_KEY_PATH:
+            return authenticate(settings.GEE_SERVICE_ACCOUNT, settings.GEE_PRIVATE_KEY_PATH)
+    except Exception as exc:
+        logger.warning("Auto-authenticating GEE encountered error: %s", exc)
+
+    return False
+
+
 def is_initialised() -> bool:
     """Return whether GEE has been successfully initialised."""
+    global _ee_initialised
+    if not _ee_initialised:
+        ensure_authenticated()
     return _ee_initialised
 
 

@@ -47,6 +47,7 @@ export interface SystemHealth {
   redis: boolean;
   celery: boolean;
   gee: boolean;
+  gee_message?: string;
 }
 
 export interface PipelineStatus {

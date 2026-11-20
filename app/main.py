@@ -29,6 +29,17 @@ limiter = Limiter(
 async def lifespan(app: FastAPI):
     """Application startup and shutdown hooks."""
     logger.info("EcoShield API starting up...")
+
+    # Initialize GEE if configured
+    try:
+        from app.services.gee_service import ensure_authenticated
+        if ensure_authenticated():
+            logger.info("GEE (Google Earth Engine) successfully authenticated.")
+        else:
+            logger.info("GEE not active or key not detected – running with resilient fallback.")
+    except Exception as exc:
+        logger.warning("GEE startup check: %s", exc)
+
     yield
     logger.info("EcoShield API shutting down...")
 

@@ -75,7 +75,12 @@ export const getDemoTokens = () =>
 export const fetchHealth = async (): Promise<SystemHealth> => {
   try {
     const res = await api.get('/health/detailed');
-    if (res.data?.health) return res.data.health;
+    if (res.data?.health) {
+      return {
+        ...res.data.health,
+        gee_message: res.data.gee_details?.message,
+      };
+    }
   } catch {
     // Fall back to simple /health or offline defaults
   }

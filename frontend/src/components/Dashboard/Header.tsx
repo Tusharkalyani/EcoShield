@@ -6,10 +6,11 @@ interface Props {
   onLogSighting: () => void
 }
 
-function Pill({ label, up }: { label: string; up: boolean }) {
+function Pill({ label, up, title }: { label: string; up: boolean; title?: string }) {
   return (
     <div
-      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+      title={title}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer"
       style={{
         background: up ? '#064e3b' : '#7f1d1d',
         color: up ? '#10B981' : '#fca5a5',
@@ -45,11 +46,15 @@ export default function Header({ health, onLogSighting }: Props) {
 
       {/* Health pills */}
       <div className="hidden md:flex items-center gap-2">
-        <Pill label="API"      up={health.api} />
-        <Pill label="PostGIS"  up={health.postgis} />
-        <Pill label="Celery"   up={health.celery} />
-        <Pill label="Redis"    up={health.redis} />
-        <Pill label="GEE"      up={health.gee} />
+        <Pill label="API"      up={health.api} title={health.api ? "API Online" : "API Offline"} />
+        <Pill label="PostGIS"  up={health.postgis} title={health.postgis ? "PostGIS Connected" : "PostGIS Offline (Using in-memory cache)"} />
+        <Pill label="Celery"   up={health.celery} title={health.celery ? "Celery Worker Active" : "Celery Offline"} />
+        <Pill label="Redis"    up={health.redis} title={health.redis ? "Redis Cache Online" : "Redis Offline"} />
+        <Pill
+          label="GEE"
+          up={health.gee}
+          title={health.gee ? "Google Earth Engine: Authenticated & Live" : (health.gee_message || "GEE Project Registration Needed")}
+        />
       </div>
 
       {/* Action */}

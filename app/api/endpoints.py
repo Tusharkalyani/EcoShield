@@ -674,6 +674,17 @@ def api_health_detailed(db: Session = Depends(get_db)) -> dict[str, Any]:
     except Exception:
         postgis_ok = False
 
+    gee_ok = False
+    gee_msg: str | None = None
+    try:
+        from app.services.gee_service import is_initialised, get_last_error
+        gee_ok = is_initialised()
+        if not gee_ok:
+            gee_msg = get_last_error()
+    except Exception as exc:
+        gee_ok = False
+        gee_msg = str(exc)
+
     return {
         "status": "healthy",
         "service": "ecoshield",
@@ -682,6 +693,10 @@ def api_health_detailed(db: Session = Depends(get_db)) -> dict[str, Any]:
             "postgis": postgis_ok,
             "redis": True,
             "celery": True,
-            "gee": False,
+            "gee": gee_ok,
+        },
+        "gee_details": {
+            "authenticated": gee_ok,
+            "message": "Connected to Google Earth Engine" if gee_ok else (gee_msg or "GEE not active"),
         },
     }
