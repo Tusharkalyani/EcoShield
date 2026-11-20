@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg-base: #0F172A;
+  --bg-card: #1E293B;
+  --bg-border: #334155;
+  --text-primary: #E2E8F0;
+  --text-muted: #94A3B8;
+  --forest: #10B981;
+  --amber: #F59E0B;
+  --crimson: #EF4444;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+
+/* ── Leaflet map styles & stacking context ───────────────────────────── */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  background: #0F172A !important;
+  font-family: inherit;
+  z-index: 10 !important; /* Keep base map contained below custom drawers/modals */
+}
+
+.leaflet-pane {
+  z-index: 400 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 800 !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #1E293B;
+  color: #E2E8F0;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.leaflet-popup-tip {
+  background: #1E293B;
+}
+
+.leaflet-control-zoom a {
+  background: #1E293B !important;
+  color: #E2E8F0 !important;
+  border-color: #334155 !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #334155 !important;
+  color: #10B981 !important;
+}
+
+/* ── Modal overlay & Drawer stacking rules ────────────────────────────── */
+/* Ensure all modals sit strictly on top of all Leaflet panes & controls */
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  background: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(4px);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1rem !important;
+}
+
+.drawer-overlay {
+  z-index: 2000 !important;
+}
+
+/* ── Custom scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #1E293B; }
+::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* ── Animations ───────────────────────────────────────────────────────── */
+.drawer-enter { animation: slideIn 0.25s ease-out; }
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.modal-enter { animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes modalPop {
+  from { transform: scale(0.95); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
